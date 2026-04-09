@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>KHAIRDIDACT · Quiz – Identifier les méthodes pédagogiques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ink:#1a1a2e;--paper:#f5f0e8;--paper-dark:#ede7d9;
+  --sage:#3d6b4f;--sage-lite:#5a9470;--sage-pale:#e8f0eb;
+  --dust:#ddd5c4;--muted:#7a7264;--white:#ffffff;
+  --radius:14px;--ok:#2d6a3f;--ok-pale:#e8f5ee;--ok-border:#b8d4c0;
+  --err:#8b2222;--err-pale:#faeaea;--err-border:#f4b8b8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;font-weight:300;background:var(--paper);color:var(--ink);min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
+
+/* ── Barre de score ── */
+.score-bar{position:sticky;top:0;z-index:100;background:rgba(245,240,232,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--dust);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.score-brand{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);font-weight:500;}
+.score-counters{display:flex;align-items:center;gap:20px;}
+.score-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.score-label{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);}
+.score-val{font-family:'DM Serif Display',serif;font-size:22px;line-height:1;}
+.score-val.ok{color:var(--ok);}
+.score-val.err{color:var(--err);}
+.score-val.total{color:var(--ink);}
+.progress-wrap{flex:1;max-width:220px;min-width:100px;}
+.progress-track{height:5px;background:var(--dust);border-radius:99px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--sage);border-radius:99px;transition:width .4s ease;}
+.progress-label{font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:4px;text-align:right;}
+
+/* ── Page ── */
+.page{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:44px 24px 80px;}
+header{text-align:center;margin-bottom:44px;}
+.brand{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--sage);font-weight:500;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:12px;}
+.brand::before,.brand::after{content:'';width:36px;height:1px;background:var(--sage-lite);display:block;}
+h1{font-family:'DM Serif Display',serif;font-size:clamp(26px,5vw,42px);line-height:1.12;margin-bottom:10px;}
+h1 em{font-style:italic;color:var(--sage);}
+.intro{font-size:14px;color:var(--muted);max-width:520px;margin:0 auto;line-height:1.7;}
+.legend{display:flex;gap:18px;justify-content:center;margin-top:18px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+.legend-dot{width:10px;height:10px;border-radius:50%;}
+.legend-dot.waiting{background:var(--dust);}
+.legend-dot.correct{background:var(--ok);}
+.legend-dot.wrong{background:var(--err);}
+
+/* ── Grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:22px;}
+
+/* ── Flip card wrapper ── */
+.card-wrap{position:relative;}
+.card-status{position:absolute;top:10px;right:10px;z-index:10;width:20px;height:20px;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:500;opacity:0;transition:opacity .3s;}
+.card-status.show-ok{opacity:1;background:var(--ok);color:#fff;}
+.card-status.show-err{opacity:1;background:var(--err);color:#fff;}
+.card-scene{background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 18px rgba(26,26,46,.07);display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.4,0,.2,1);transform-origin:center center;}
+.card-scene.flipping{transform:scaleX(0);}
+
+/* ── Card accent + body ── */
+.card-accent{height:5px;}
+.card-body{padding:22px 24px 18px;flex:1;display:flex;flex-direction:column;}
+
+/* ── FRONT ── */
+.card-num{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:500;}
+.card-scenario-label{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px;}
+.card-scenario-text{font-size:13px;line-height:1.72;color:#2f2f2f;font-style:italic;background:var(--paper);border-left:3px solid var(--sage);padding:11px 13px;border-radius:0 8px 8px 0;margin-bottom:16px;flex:1;}
+.card-select-label{font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em;}
+.card-select{width:100%;padding:9px 12px;border:1.5px solid var(--dust);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:12px;background:var(--white);color:var(--ink);cursor:pointer;margin-bottom:12px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a7264' d='M0 0l6 8 6-8z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;transition:border-color .2s;}
+.card-select:focus{outline:none;border-color:var(--sage);}
+.card-select option{padding:6px;}
+.btn-validate{width:100%;padding:10px;background:var(--sage);color:var(--white);border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.06em;cursor:pointer;transition:background .2s,transform .1s;}
+.btn-validate:hover{background:var(--sage-lite);}
+.btn-validate:active{transform:scale(.98);}
+.btn-validate:disabled{background:var(--dust);color:var(--muted);cursor:not-allowed;}
+
+/* ── BACK ── */
+.back-result-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;font-size:12px;font-weight:500;letter-spacing:.04em;margin-bottom:14px;width:fit-content;}
+.back-result-badge.correct{background:var(--ok-pale);color:var(--ok);border:1.5px solid var(--ok-border);}
+.back-result-badge.wrong{background:var(--err-pale);color:var(--err);border:1.5px solid var(--err-border);}
+.back-method-name{font-family:'DM Serif Display',serif;font-size:16px;line-height:1.25;color:var(--ink);margin-bottom:6px;}
+.back-objectif{font-size:13px;line-height:1.68;color:#333;margin-bottom:14px;}
+.back-wrong-section{background:var(--err-pale);border:1px solid var(--err-border);border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--err);line-height:1.65;}
+.back-wrong-section strong{font-weight:500;}
+.back-divider{height:1px;background:var(--paper-dark);margin:0 0 14px;}
+.back-section-label{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px;}
+.back-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.back-tag{font-size:11px;padding:4px 10px;border-radius:99px;background:var(--sage-pale);color:#2d5038;border:1px solid #b8d4c0;font-weight:400;}
+.back-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.back-chip{background:var(--paper);border-radius:8px;padding:9px 11px;}
+.back-chip-label{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.back-chip-val{font-size:11px;color:var(--ink);line-height:1.45;}
+.btn-monograph{display:block;text-align:center;padding:9px;border:1.5px solid var(--sage);color:var(--sage);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.06em;text-decoration:none;transition:background .2s,color .2s;margin-top:auto;}
+.btn-monograph:hover{background:var(--sage);color:var(--white);}
+.answered-label{font-size:10px;color:var(--muted);text-align:center;padding:10px 0 4px;letter-spacing:.05em;}
+
+/* ── End screen overlay ── */
+.end-screen{display:none;position:fixed;inset:0;z-index:200;background:rgba(26,26,46,.62);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;}
+.end-screen.show{display:flex;}
+.end-box{background:var(--white);border-radius:20px;max-width:480px;width:100%;padding:40px 40px 36px;text-align:center;box-shadow:0 30px 90px rgba(26,26,46,.25);animation:popIn .4s cubic-bezier(.2,.8,.3,1) both;}
+@keyframes popIn{from{opacity:0;transform:scale(.88) translateY(16px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.end-stars{font-size:36px;margin-bottom:18px;letter-spacing:4px;}
+.end-title{font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:10px;}
+.end-subtitle{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:24px;}
+.end-score-row{display:flex;gap:16px;justify-content:center;margin-bottom:28px;}
+.end-score-item{background:var(--paper);border-radius:12px;padding:14px 20px;min-width:80px;}
+.end-score-num{font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:2px;}
+.end-score-num.ok{color:var(--ok);}
+.end-score-num.err{color:var(--err);}
+.end-score-num.total{color:var(--ink);}
+.end-score-lbl{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.btn-replay{display:inline-block;padding:12px 32px;background:var(--sage);color:var(--white);border:none;border-radius:99px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;letter-spacing:.08em;cursor:pointer;transition:background .2s;margin-top:4px;}
+.btn-replay:hover{background:var(--sage-lite);}
+
+/* ── Responsive ── */
+@media(max-width:600px){.grid{grid-template-columns:1fr;}.back-chips{grid-template-columns:1fr;}.end-box{padding:28px 22px 26px;}}
+</style>
+</head>
+<body>
+
+<!-- Barre score sticky -->
+<div class="score-bar">
+  <div class="score-brand">Khairdidact · Armée du Salut</div>
+  <div class="score-counters">
+    <div class="score-item">
+      <span class="score-label">Score</span>
+      <span class="score-val total" id="sc-score">0</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">Justes</span>
+      <span class="score-val ok" id="sc-ok">0</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">Faux</span>
+      <span class="score-val err" id="sc-err">0</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="sc-progress" style="width:0%"></div></div>
+      <div class="progress-label" id="sc-prog-label">0 / 12 cartes</div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+  <header>
+    <div class="brand">Khairdidact · Formation bénévole</div>
+    <h1>Identifier<br/><em>la méthode pédagogique</em></h1>
+    <p class="intro">Lisez chaque scénario et identifiez la méthode pédagogique mise en œuvre. Bonne réponse : +1 point. Mauvaise réponse : −1 point.</p>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot waiting"></span>En attente</div>
+      <div class="legend-item"><span class="legend-dot correct"></span>Bonne réponse</div>
+      <div class="legend-item"><span class="legend-dot wrong"></span>Erreur</div>
+    </div>
+  </header>
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- Écran fin de partie -->
+<div class="end-screen" id="end-screen">
+  <div class="end-box">
+    <div class="end-stars" id="end-stars">⭐⭐⭐</div>
+    <div class="end-title" id="end-title">Résultat final</div>
+    <div class="end-subtitle" id="end-subtitle">Vous avez terminé les 12 cartes !</div>
+    <div class="end-score-row">
+      <div class="end-score-item"><div class="end-score-num total" id="end-total">0</div><div class="end-score-lbl">Score</div></div>
+      <div class="end-score-item"><div class="end-score-num ok" id="end-ok">0</div><div class="end-score-lbl">Justes</div></div>
+      <div class="end-score-item"><div class="end-score-num err" id="end-err">0</div><div class="end-score-lbl">Faux</div></div>
+    </div>
+    <button class="btn-replay" onclick="startGame()">↺ Rejouer</button>
+  </div>
+</div>
+
+<script>
+const METHODS = [
+  { num:1, icon:"📢", name:"Méthode expositive / transmissive", color:"#5a7fa8", colorPale:"#eaf0f7",
+    scenario:"Le formateur bénévole présente la correspondance entre les lettres de l'alphabet et leurs sons à l'aide d'un grand poster illustré. Il pointe chaque lettre, prononce le phonème associé et donne un exemple-image : « A comme arbre ». Les apprenants écoutent, regardent et répètent en chœur.",
+    objectif:"Installer les bases du code alphabétique chez des apprenants en situation d'illettrisme ou primo-arrivants sans scolarisation antérieure.",
+    posture:"Passeur de savoirs, voix et gestes clairs, rythme lent",
+    competence:"Déchiffrage, correspondance graphème-phonème",
+    tags:["Transmission directe","Écoute active","Phonologie"],
+    vigilance:"Veiller à ne pas surcharger la séance : 4 à 5 lettres maximum. Valider la compréhension par une mini-répétition individuelle avant de passer à la suite.",
+    monographSlug:"methode-expositive" },
+  { num:2, icon:"❓", name:"Méthode interrogative", color:"#8b5e8b", colorPale:"#f5eef5",
+    scenario:"Le formateur affiche une image représentant une scène de marché. Il pose des questions ouvertes : « Qu'est-ce que vous voyez ici ? », « Ce mot, on le retrouve où dans votre vie ? », « Que fait cette personne ? ». Chaque réponse est reformulée et écrite au tableau, servant de tremplin à la lecture.",
+    objectif:"Activer les connaissances implicites des apprenants et les relier au code écrit, en partant de ce qu'ils savent déjà.",
+    posture:"Questionneur bienveillant, guide socratique",
+    competence:"Compréhension orale, lecture de mots en contexte",
+    tags:["Questionnement","Image déclenchante","Oral vers écrit"],
+    vigilance:"Reformuler sans corriger brusquement. Accueillir toutes les réponses. Éviter les questions fermées oui/non qui bloquent l'échange.",
+    monographSlug:"methode-interrogative" },
+  { num:3, icon:"🙋", name:"Méthode participative", color:"#4a8b6f", colorPale:"#e8f5ee",
+    scenario:"En début de séance, le formateur demande à chaque apprenant de proposer un mot qui compte pour lui : son prénom, le nom de sa rue, un aliment qu'il aime. Ces mots sont écrits au tableau par le formateur. Ensemble, le groupe les lit, les syllabe, les copie. La séance se construit en direct avec les apports de tous.",
+    objectif:"Placer l'apprenant en auteur de ses propres supports d'apprentissage pour renforcer l'engagement et la mémorisation.",
+    posture:"Facilitateur, scribe bienveillant du groupe",
+    competence:"Lecture, écriture, conscience phonologique",
+    tags:["Co-construction","Mots-clés personnels","Engagement"],
+    vigilance:"Respecter l'ordre de prise de parole pour que personne ne soit oublié. Adapter la graphie à la lisibilité (écriture script grand format).",
+    monographSlug:"methode-participative" },
+  { num:4, icon:"⚡", name:"Méthode active", color:"#c97a30", colorPale:"#fdf0e4",
+    scenario:"Les apprenants reçoivent une enveloppe contenant des étiquettes-mots illustrées à trier par catégories : aliments, vêtements, transports. Ils manipulent, comparent, lisent les étiquettes à voix basse, puis les classent dans des colonnes tracées sur leur table. Chaque apprenant justifie son classement au groupe.",
+    objectif:"Développer l'autonomie et la lecture fonctionnelle de mots du quotidien par la manipulation physique de supports.",
+    posture:"Observateur actif, relanceur de raisonnement",
+    competence:"Lecture de mots, catégorisation lexicale",
+    tags:["Manipulation","Tri lexical","Autonomie"],
+    vigilance:"Prévoir des étiquettes avec pictogrammes pour les apprenants en début d'alphabétisation. Valoriser les erreurs comme étapes du raisonnement.",
+    monographSlug:"methode-active" },
+  { num:5, icon:"🌱", name:"Méthode expérientielle", color:"#5a8a5a", colorPale:"#eaf5ea",
+    scenario:"Après une sortie collective à la pharmacie du quartier, les apprenants s'expriment oralement sur ce qu'ils ont vu et vécu. Le formateur transcrit leurs phrases telles quelles au tableau : « J'ai vu des boîtes de médicaments », « Il y avait le mot ordonnance ». Ces phrases deviennent le texte de lecture de la séance suivante.",
+    objectif:"Ancrer la lecture-écriture dans un vécu partagé pour donner du sens à l'écrit et favoriser la mémorisation par l'expérience.",
+    posture:"Médiateur de l'expérience, transcripteur fidèle",
+    competence:"Lecture de textes simples produits oralement, expression écrite",
+    tags:["Vécu réel","Dictée à l'adulte","Sens de la lecture"],
+    vigilance:"Conserver les tournures des apprenants sans correction syntaxique excessive dans un premier temps. Valoriser « leur » texte avant de le travailler.",
+    monographSlug:"methode-experientielle" },
+  { num:6, icon:"🔍", name:"Méthode de découverte / inductive", color:"#3a7a8a", colorPale:"#e4f0f5",
+    scenario:"Le formateur écrit au tableau une série de mots contenant le même son : « mouton – tour – rouge – loup – coucou ». Il demande : « Qu'est-ce que ces mots ont en commun ? » Les apprenants observent, comparent, soulignent, proposent. Ensemble, ils formulent la règle : « ou se dit /u/ ». Ils cherchent alors d'autres mots avec « ou ».",
+    objectif:"Amener les apprenants à construire eux-mêmes les règles de la langue en observant des données, développant ainsi une posture de chercheur.",
+    posture:"Guide discret, garant de la rigueur sans donner les réponses",
+    competence:"Conscience phonologique, règles phonétiques, déduction",
+    tags:["Observation","Raisonnement","Construction de règle"],
+    vigilance:"Choisir des exemples sans exceptions pour commencer. S'assurer que tous les apprenants voient bien les mots au tableau (taille de police).",
+    monographSlug:"methode-decouverte" },
+  { num:7, icon:"🧩", name:"Méthode déductive", color:"#7a5a9a", colorPale:"#f2eef8",
+    scenario:"Le formateur annonce clairement la règle : « Les lettres oi se lisent toujours /wa/ ». Il montre des exemples : voix, doigt, bois, roi. Les apprenants s'entraînent ensuite à lire une liste de mots nouveaux contenant « oi », puis les utilisent dans des phrases orales. Enfin, une dictée de 3 mots clôt l'exercice d'application.",
+    objectif:"Stabiliser une règle phonique déjà présentée et en automatiser l'application dans la lecture et l'écriture.",
+    posture:"Instructeur structuré, correcteur immédiat et explicatif",
+    competence:"Application d'une règle phonique, déchiffrage, orthographe",
+    tags:["Règle → exemples","Application","Automatisation"],
+    vigilance:"La règle doit être mémorisée visuellement (affichée en classe). Prévoir des exercices progressifs : lecture seule → lecture en phrase → production.",
+    monographSlug:"methode-deductive" },
+  { num:8, icon:"🤝", name:"Méthode collaborative / coopérative", color:"#4a7a9a", colorPale:"#e4eef5",
+    scenario:"Par binômes, les apprenants reçoivent une phrase découpée en étiquettes-mots mélangées. Ensemble, ils reconstituent la phrase dans le bon ordre, s'expliquent leurs choix, la lisent à voix haute, puis la comparent avec les autres binômes. La phrase correcte est construite collectivement au tableau.",
+    objectif:"Développer la syntaxe et la conscience de la phrase en mobilisant l'entraide et la discussion entre pairs.",
+    posture:"Organisateur, arbitre bienveillant, observateur des échanges",
+    competence:"Syntaxe de la phrase, lecture, entraide langagière",
+    tags:["Binômes","Entraide","Syntaxe en contexte"],
+    vigilance:"Former des binômes de niveaux complémentaires. Veiller à ce que chacun ait un rôle actif (un lit, l'autre place les étiquettes, puis on inverse).",
+    monographSlug:"methode-collaborative" },
+  { num:9, icon:"🪞", name:"Méthode réflexive", color:"#8a6a4a", colorPale:"#f5f0ea",
+    scenario:"En fin de séance, chaque apprenant prend 5 minutes pour compléter son carnet de bord personnel : il dessine ou écrit ce qu'il a appris, ce qu'il a trouvé difficile, ce qu'il veut retravailler. Le formateur circule, pose des questions ouvertes : « Qu'est-ce qui était nouveau pour toi aujourd'hui ? » Les carnets ne sont pas notés.",
+    objectif:"Développer la métacognition et l'autonomie d'apprentissage en aidant chacun à identifier ses progrès et ses besoins.",
+    posture:"Accompagnateur de la pensée, non-évaluateur",
+    competence:"Métacognition, expression écrite libre, auto-évaluation",
+    tags:["Carnet de bord","Retour sur soi","Progrès visibles"],
+    vigilance:"Proposer des pictogrammes pour les apprenants non scripteurs. Ne jamais lire le carnet à voix haute sans accord de l'apprenant. Respecter le temps individuel.",
+    monographSlug:"methode-reflexive" },
+  { num:10, icon:"🎮", name:"Méthode ludique", color:"#c95a5a", colorPale:"#f9eaea",
+    scenario:"Jeu de loto de mots : chaque apprenant reçoit une grille de 9 cases avec des mots illustrés. Le formateur tire au sort des cartons et lit le mot à voix haute (ou montre seulement l'image). L'apprenant cherche sur sa grille, lit le mot, le coche s'il l'a. Le premier à compléter une ligne crie « Loto ! » et relit ses mots pour valider.",
+    objectif:"Renforcer la reconnaissance globale de mots-outils et de mots du quotidien dans un climat de plaisir et de décontraction.",
+    posture:"Animateur enthousiaste, régulateur du jeu",
+    competence:"Lecture globale, mots-outils, concentration",
+    tags:["Jeu de société","Lecture globale","Motivation"],
+    vigilance:"Adapter la difficulté des mots au niveau du groupe. Prévoir des grilles illustrées pour les débutants. Le bruit festif est normal et positif !",
+    monographSlug:"methode-ludique" },
+  { num:11, icon:"💛", name:"Méthode socio-affective", color:"#c97a8a", colorPale:"#f9eef0",
+    scenario:"La séance s'ouvre sur un tour de parole des prénoms : chaque apprenant écrit son prénom sur une grande étiquette, le présente au groupe, raconte pourquoi il porte ce prénom ou ce qu'il signifie dans sa langue. Le formateur aide à transcrire les prénoms en français, en montre la syllabation. Ces étiquettes deviennent les prénoms-supports de tout le trimestre.",
+    objectif:"Créer un climat de confiance et de reconnaissance mutuelle en faisant de l'identité personnelle le premier support d'apprentissage.",
+    posture:"Accueillant, témoin valorisant de chaque histoire",
+    competence:"Présentation de soi, écriture du prénom, confiance en soi",
+    tags:["Identité","Confiance","Prénoms-supports"],
+    vigilance:"Respecter ceux qui ne souhaitent pas partager l'histoire de leur prénom. Ne jamais corriger la prononciation d'un prénom étranger devant le groupe.",
+    monographSlug:"methode-socio-affective" },
+  { num:12, icon:"🗂️", name:"Méthode par projet", color:"#6a8a4a", colorPale:"#eef5ea",
+    scenario:"Sur 4 séances, le groupe élabore un livret de recettes bilingues : chaque apprenant choisit une recette de son pays, la dicte au formateur qui l'aide à la transcrire et à la simplifier. Le groupe illustre les recettes, choisit un titre collectif, photocopie le livret et l'offre au centre. Chacun présente « sa » recette lors de la séance finale.",
+    objectif:"Mobiliser toutes les compétences (oral, lecture, écriture, vocabulaire) dans un projet porteur de sens, valorisant et visible socialement.",
+    posture:"Chef de projet pédagogique, coordinateur enthousiaste",
+    competence:"Écriture fonctionnelle, prise de parole, lexique alimentaire",
+    tags:["Projet collectif","Livret de recettes","Valorisation"],
+    vigilance:"Définir clairement le livrable dès le début. Prévoir un plan B si certains apprenants sont absents. Célébrer la remise du livret !",
+    monographSlug:"methode-par-projet" }
+];
+
+const MONOGRAPH_URLS = {
+  1:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1maVw12wCzTKY-782GyZMEBvI96p7ZzB6/preview",
+  2:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1O6xWYCiCFT215wFT_zPj-w1PbleIrYPZ/preview",
+  3:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1Two_rwVCzOqrILmkCwuzYyapki5441V7/preview",
+  4:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1AmoMF9ZNBjo0EnpumPnzjKVtNK55Pay1/preview",
+  5:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1BgyOIRtiTwXQGa-9o_c6YM2R8sdFFHVC/preview",
+  6:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1eH-5Bf01woMUWsHK8IUfnNfS0kBgJqqI/preview",
+  7:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/10E_2ax-FM3eKdH5wnKHzTfGt4Ue83r_o/preview",
+  8:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1SlCPcgPWI05PY89RbIX285AJw9IqvXQ1/preview",
+  9:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1ichhLexsK8-_3fcl6RM7_D64Rzq0DaZS/preview",
+  10:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1MPvowBPodqqc8V-_yDPzvABEIBNt6w07/preview",
+  11:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1UOnFRxO0KXX1QWgHr_YEn2Xtw3beguJX/preview",
+  12:"https://sites.google.com/d/1UeR2gnbC6ts4kXfiAlnYBhAjFzH0SL-f/p/1LylSiOZFxEMtErg6DEKuoKK3M6ll3q4S/preview"
+};
+
+let state = { score:0, correct:0, wrong:0, answered:new Set(), order:[] };
+
+function shuffle(arr) {
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function updateScoreBar() {
+  document.getElementById('sc-score').textContent = state.score;
+  document.getElementById('sc-ok').textContent    = state.correct;
+  document.getElementById('sc-err').textContent   = state.wrong;
+  const pct = Math.round((state.answered.size / 12) * 100);
+  document.getElementById('sc-progress').style.width = pct + '%';
+  document.getElementById('sc-prog-label').textContent = state.answered.size + ' / 12 cartes retournées';
+}
+
+function buildSelectOptions(cardIdx) {
+  const shuffledOpts = shuffle(METHODS);
+  let html = '<option value="">— Choisissez une méthode —</option>';
+  shuffledOpts.forEach(m => {
+    html += `<option value="${m.num}">${m.icon} Méthode ${String(m.num).padStart(2,'0')} – ${m.name}</option>`;
+  });
+  return html;
+}
+
+function buildFrontHTML(m, cardIdx) {
+  return `
+    <div class="card-accent" style="background:${m.color}"></div>
+    <div class="card-body">
+      <div class="card-num">Scénario ${String(cardIdx+1).padStart(2,'0')} / 12</div>
+      <div class="card-scenario-label">Situation observée</div>
+      <div class="card-scenario-text">${m.scenario}</div>
+      <div class="card-select-label">Quelle méthode le formateur utilise-t-il ?</div>
+      <select class="card-select" id="sel-${cardIdx}" onchange="document.getElementById('btn-${cardIdx}').disabled=!this.value">
+        ${buildSelectOptions(cardIdx)}
+      </select>
+      <button class="btn-validate" id="btn-${cardIdx}" disabled onclick="validateCard(${cardIdx}, ${m.num})">
+        Valider ma réponse →
+      </button>
+    </div>`;
+}
+
+function buildBackHTML(m, chosenNum, isCorrect) {
+  const chosen = METHODS.find(x => x.num === chosenNum);
+  const badgeClass = isCorrect ? 'correct' : 'wrong';
+  const badgeIcon  = isCorrect ? '✓' : '✗';
+  const badgeText  = isCorrect ? 'Bonne réponse !' : 'Ce n\'est pas la bonne méthode';
+
+  let wrongSection = '';
+  if (!isCorrect && chosen) {
+    wrongSection = `
+      <div class="back-wrong-section">
+        <strong>Vous avez choisi :</strong> Méthode ${String(chosen.num).padStart(2,'0')} – ${chosen.name}
+        (posture : ${chosen.posture.split(',')[0]}, centrée sur ${chosen.tags[0].toLowerCase()}).
+        Or le scénario met en avant <em>${m.tags[0].toLowerCase()}</em> et <em>${m.tags[1].toLowerCase()}</em>,
+        signes caractéristiques de la ${m.name.toLowerCase()}.
+      </div>`;
+  }
+
+  return `
+    <div class="card-accent" style="background:${m.color}"></div>
+    <div class="card-body">
+      <div class="back-result-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
+      <div class="back-method-name">${m.icon} Méthode ${String(m.num).padStart(2,'0')} – ${m.name}</div>
+      <div class="back-objectif">${m.objectif}</div>
+      ${wrongSection}
+      <div class="back-divider"></div>
+      <div class="back-section-label">3 éléments caractéristiques</div>
+      <div class="back-tags">
+        ${m.tags.map(t=>`<span class="back-tag">${t}</span>`).join('')}
+      </div>
+      <div class="back-chips">
+        <div class="back-chip">
+          <div class="back-chip-label">Posture du formateur</div>
+          <div class="back-chip-val">${m.posture}</div>
+        </div>
+        <div class="back-chip">
+          <div class="back-chip-label">Compétence travaillée</div>
+          <div class="back-chip-val">${m.competence}</div>
+        </div>
+        <div class="back-chip">
+          <div class="back-chip-label">Supports / outils</div>
+          <div class="back-chip-val" id="supports-${m.num}">–</div>
+        </div>
+        <div class="back-chip">
+          <div class="back-chip-label">Point de vigilance</div>
+          <div class="back-chip-val">${m.vigilance.substring(0,80)}…</div>
+        </div>
+      </div>
+      <a class="btn-monograph" href="${MONOGRAPH_URLS[m.num]}" target="_blank">
+        Lire la monographie complète →
+      </a>
+    </div>`;
+}
+
+const SUPPORTS = {
+  1:"Poster alphabet illustré, ardoises individuelles",
+  2:"Grandes images situationnelles, tableau ou paperboard",
+  3:"Tableau blanc, cahiers, étiquettes-mots personnalisées",
+  4:"Étiquettes illustrées, feuille de tri, ciseaux/colle",
+  5:"Tableau ou paperboard, texte dicté photocopié, photos de la sortie",
+  6:"Tableau, mots-exemples sur étiquettes, surligneur",
+  7:"Fiche règle illustrée, liste de mots, ardoises",
+  8:"Étiquettes-mots prédécoupées, tableau collectif",
+  9:"Carnet de bord illustré, stylos de couleur, pictogrammes émotion",
+  10:"Grilles de loto personnalisées, cartons-mots, jetons",
+  11:"Grandes étiquettes cartonnées, marqueurs, ficelle de présentoir",
+  12:"Modèle de fiche-recette, appareils photo / smartphones, reprographie"
+};
+
+function validateCard(cardIdx, correctNum) {
+  const sel = document.getElementById('sel-' + cardIdx);
+  const chosenNum = parseInt(sel.value);
+  if (!chosenNum) return;
+
+  const isCorrect = (chosenNum === correctNum);
+  const m = METHODS.find(x => x.num === correctNum);
+  const wrap  = document.getElementById('wrap-' + cardIdx);
+  const scene = document.getElementById('scene-' + cardIdx);
+  const status = document.getElementById('status-' + cardIdx);
+
+  state.answered.add(cardIdx);
+  if (isCorrect) { state.score++; state.correct++; }
+  else           { state.score--; state.wrong++;   }
+  updateScoreBar();
+
+  status.className = 'card-status ' + (isCorrect ? 'show-ok' : 'show-err');
+  status.textContent = isCorrect ? '✓' : '✗';
+
+  scene.classList.add('flipping');
+  scene.addEventListener('transitionend', () => {
+    scene.innerHTML = buildBackHTML(m, chosenNum, isCorrect);
+    const sp = scene.querySelector(`#supports-${m.num}`);
+    if (sp) sp.textContent = SUPPORTS[m.num] || '–';
+    scene.classList.remove('flipping');
+
+    if (state.answered.size === 12) {
+      setTimeout(showEndScreen, 800);
+    }
+  }, { once: true });
+}
+
+function showEndScreen() {
+  const sc = state.score;
+  const ok = state.correct;
+  const err = state.wrong;
+  let stars = '⭐';
+  let title = 'Peut mieux faire…';
+  let subtitle = 'Retentez le quiz pour consolider vos connaissances des méthodes pédagogiques.';
+  if (sc >= 10)      { stars='⭐⭐⭐'; title='Excellent !';     subtitle='Vous maîtrisez parfaitement les 12 méthodes pédagogiques. Bravo !'; }
+  else if (sc >= 7)  { stars='⭐⭐';  title='Très bien !';     subtitle='Bonne connaissance des méthodes. Quelques nuances à affiner.'; }
+  else if (sc >= 4)  { stars='⭐';   title='Bien engagé·e !'; subtitle='Vous avancez. Relisez les monographies des méthodes qui vous ont posé problème.'; }
+  document.getElementById('end-stars').textContent    = stars;
+  document.getElementById('end-title').textContent    = title;
+  document.getElementById('end-subtitle').textContent = subtitle;
+  document.getElementById('end-total').textContent    = sc;
+  document.getElementById('end-ok').textContent       = ok;
+  document.getElementById('end-err').textContent      = err;
+  document.getElementById('end-screen').classList.add('show');
+}
+
+function startGame() {
+  state = { score:0, correct:0, wrong:0, answered:new Set(), order:[] };
+  updateScoreBar();
+  document.getElementById('end-screen').classList.remove('show');
+
+  const shuffled = shuffle(METHODS);
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  shuffled.forEach((m, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'card-wrap';
+    wrap.id = 'wrap-' + idx;
+
+    const status = document.createElement('div');
+    status.className = 'card-status';
+    status.id = 'status-' + idx;
+
+    const scene = document.createElement('div');
+    scene.className = 'card-scene';
+    scene.id = 'scene-' + idx;
+    scene.innerHTML = buildFrontHTML(m, idx);
+
+    wrap.appendChild(status);
+    wrap.appendChild(scene);
+    grid.appendChild(wrap);
+  });
+}
+
+startGame();
+</script>
+</body>
+</html>
